@@ -7,6 +7,20 @@ import pdb
 import shlex
 import sys
 
+# define logging details
+formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %I:%M:%S %p')
+formatter_no_source = logging.Formatter('%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %I:%M:%S %p')
+ch = logging.StreamHandler() # console handler
+ch.setLevel(logging.INFO)
+ch.setFormatter(formatter_no_source)
+fl = logging.FileHandler(sys.argv[2]) #file handler
+fl.setLevel(logging.INFO)
+fl.setFormatter(formatter)
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+log.addHandler(ch)
+log.addHandler(fl)
+
 def run_cmd(cmd, returnstring):
     log.debug('cmd is: {0}'.format(cmd))
     log.debug('returnstring is: {0}'.format(returnstring))
@@ -14,8 +28,8 @@ def run_cmd(cmd, returnstring):
     try:
         process = Popen(cmdplus, stdout=PIPE)
         cmdoutput = process.communicate()
-    except OSError:
-        log.debug('OS Exception occurred')
+    except OSError as err:
+        log.error('OS Exception occurred: {}'.format(err))
         return 0
     exitcode = process.wait()
     log.debug('cmd output is: {0}'.format(cmdoutput))
@@ -30,18 +44,6 @@ def main():
     #pdb.set_trace()
     with open(sys.argv[1]) as f:
         config_json = json.load(f)
-    formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %I:%M:%S %p')
-    formatter_no_source = logging.Formatter('%(asctime)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %I:%M:%S %p')
-    ch = logging.StreamHandler() # console handler
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(formatter_no_source)
-    fl = logging.FileHandler(config_json['logname']) #file handler
-    fl.setLevel(logging.INFO)
-    fl.setFormatter(formatter)
-    log = logging.getLogger()
-    log.setLevel(logging.DEBUG)
-    log.addHandler(ch)
-    log.addHandler(fl)
 
 
     check_command_syntax = config_json['check_command_syntax']
