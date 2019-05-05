@@ -27,7 +27,7 @@ def run_cmd(cmd, returnstring):
         return 0
 
 def main():
-    pdb.set_trace()
+    #pdb.set_trace()
     with open(sys.argv[1]) as f:
         config_json = json.load(f)
     formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %I:%M:%S %p')
