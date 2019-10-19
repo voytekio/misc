@@ -6,6 +6,22 @@ import logging
 import pdb
 import shlex
 import sys
+import argparse
+
+def parseargs():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-c","--configfile", help="name of config json", required=True, action = 'store')
+    parser.add_argument("-l","--logfile", help="name of log file", action = 'store', default = 'check_and_act.log')
+    #parser.add_argument("-e","--execute", help="use to make changes; otherwise read-only", action = 'store_true')
+    parser.add_argument("-m","--mode", help="mode - either cmds or events", action = 'store', default = 'cmds.log')
+
+    #action = 'store' is default (and can even be omitted)
+    #action = 'store_true' or 'store_false' are for flags:
+    #    if user specifes --execute, then args.execute will evaulate to True; otherwise False
+
+    args = parser.parse_args()
+    return args
 
 # define logging details
 formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s',datefmt='%Y-%m-%d %I:%M:%S %p')
@@ -13,7 +29,7 @@ formatter_no_source = logging.Formatter('%(asctime)s %(levelname)s: %(message)s'
 ch = logging.StreamHandler() # console handler
 ch.setLevel(logging.INFO)
 ch.setFormatter(formatter_no_source)
-fl = logging.FileHandler(sys.argv[2]) #file handler
+fl = logging.FileHandler(sys.argv[0] + '.log') #file handler
 fl.setLevel(logging.INFO)
 fl.setFormatter(formatter)
 log = logging.getLogger(__name__)
@@ -35,7 +51,7 @@ def run_cmd(cmd, returnstring):
     log.debug('cmd output is: {0}'.format(cmdoutput))
     log.debug('exitcode is: {0}'.format(exitcode))
     #pdb.set_trace()
-    if returnstring in cmdoutput[0]:
+    if returnstring in str(cmdoutput[0]):
         return 1
     else:
         return 0
@@ -76,37 +92,48 @@ def get_events(log_type, desired_event_id, desired_event_string=None, num_events
                 return 1
 
     win32evtlog.CloseEventLog(log_handle)
-
     return 1
 
 def main():
     #pdb.set_trace()
 
-    res = get_events('system', int(sys.argv[2]), 'pause', sys.argv[1])
-    print('res is: {}'.format(res))
-    sys.exit(1)
+    args = parseargs()
 
-    with open(sys.argv[1]) as f:
+    #and finally get to your data:
+    #- print "user is:",args.user    (uses the longer name)
+    #- if args.execute:
+    #        print "RW"
+    #    else:
+    #        print "RO"
+
+    with open(args.configfile) as f:
         config_json = json.load(f)
 
+    if 'events' in args.mode:
+        eventlog_type = config_json['eventlog_type']
+        eventlog_search_string = config_json['eventlog_search_string']
+        eventlog_id = config_json['eventlog_id']
+        eventlog_num_of_events_to_check = config_json['eventlog_num_of_events_to_check']
+        res = get_events(eventlog_type, int(eventlog_id), eventlog_search_string, eventlog_num_of_events_to_check)
+        print('res is: {}'.format(res))
+    #sys.exit(1)
 
-    check_command_syntax = config_json['check_command_syntax']
-    check_command_result = config_json['check_command_result']
-    remediation_command_syntax = config_json['remediation_command_syntax']
-    remediation_command_result = config_json['remediation_command_result']
-
-    if run_cmd(check_command_syntax, check_command_result):
-        log.info('check command success')
     else:
-        log.warn('check command failed. Running remediation command.')
-        if run_cmd(remediation_command_syntax, remediation_command_result):
-            log.info('remediation command success')
+        check_command_syntax = config_json['check_command_syntax']
+        check_command_result = config_json['check_command_result']
+        remediation_command_syntax = config_json['remediation_command_syntax']
+        remediation_command_result = config_json['remediation_command_result']
+
+        if run_cmd(check_command_syntax, check_command_result):
+            log.info('check command success')
         else:
-            log.error('error running remediation command')
+            log.warn('check command failed. Running remediation command.')
+            if run_cmd(remediation_command_syntax, remediation_command_result):
+                log.info('remediation command success')
+            else:
+                log.error('error running remediation command')
 
 if __name__ == "__main__":
     main()
-
-
     #if cmd -> get_cmd, run_cmd, compare_output
     #if pyt -> importe mod, execute known func inside module(or passt that too), compare_output 
