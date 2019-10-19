@@ -40,8 +40,52 @@ def run_cmd(cmd, returnstring):
     else:
         return 0
 
+def get_events(log_type, desired_event_id, desired_event_string=None, num_events_to_read=10):
+    print('hello from get_events func')
+    print('args are: {}, {}, {}, {}'.format(log_type, desired_event_id, desired_event_string, num_events_to_read))
+    import win32evtlog
+    import winerror
+    import win32evtlogutil
+    log_handle = win32evtlog.OpenEventLog('localhost', log_type)
+    total = win32evtlog.GetNumberOfEventLogRecords(log_handle)
+    print('total # of events: {}'.format(total))
+    flags = win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
+
+    i = 1
+    while True:
+        all_events = win32evtlog.ReadEventLog(log_handle, flags, 0)
+        if not all_events:
+            win32evtlog.CloseEventLog(log_handle)
+            return 1
+        print('Next batch, size: {}'.format(len(all_events)))
+        for one_event in all_events:
+            event_id = str(winerror.HRESULT_CODE(one_event.EventID))
+            event_id = winerror.HRESULT_CODE(one_event.EventID)
+            event_source = one_event.SourceName
+            event_msg = win32evtlogutil.SafeFormatMessage(one_event, log_type)
+            if event_id == desired_event_id:
+                print('Event:\nID: {}, Source: {}\nMessage: {}'.format(event_id, event_source, event_msg))
+                win32evtlog.CloseEventLog(log_handle)
+                return 0
+            else:
+                #print('Event:\nID: {}, Source: {}\nMessage: {}'.format(event_id, event_source, event_msg))
+                print('Nope: {}: {}'.format(i, event_id))
+            i = i + 1
+            if i > int(num_events_to_read):
+                win32evtlog.CloseEventLog(log_handle)
+                return 1
+
+    win32evtlog.CloseEventLog(log_handle)
+
+    return 1
+
 def main():
     #pdb.set_trace()
+
+    res = get_events('system', int(sys.argv[2]), 'pause', sys.argv[1])
+    print('res is: {}'.format(res))
+    sys.exit(1)
+
     with open(sys.argv[1]) as f:
         config_json = json.load(f)
 
@@ -62,3 +106,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+    #if cmd -> get_cmd, run_cmd, compare_output
+    #if pyt -> importe mod, execute known func inside module(or passt that too), compare_output 
