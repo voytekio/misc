@@ -13,13 +13,14 @@ level = logging.INFO
 #level = logging.DEBUG
 
 # setup logging
-if os.environ.get('SSH_TTY') or 'xterm' in os.environ.get('TERM'):
+if os.environ.get('SSH_TTY') or (os.environ.get('TERM') and 'xterm' in os.environ.get('TERM')):
     handlers = [
         logging.FileHandler(sys.argv[0] + '.log'),
         logging.StreamHandler(),
     ]
 else:
     handlers = [logging.FileHandler(sys.argv[0] + '.log')]
+
 logging.basicConfig(
     level=level,
     format='%(asctime)s [%(name)s][%(levelname)s] %(message)s',
