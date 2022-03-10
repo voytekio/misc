@@ -11,6 +11,8 @@ import shlex
 import sys
 import argparse
 
+VERSION = 1.3
+
 def parseargs():
     parser = argparse.ArgumentParser()
 
@@ -141,6 +143,7 @@ def main():
     with open(args.configfile) as f:
         config_json = json.load(f)
 
+    check_command_list = config_json['check_command_list']
     remediation_command_syntax = config_json['remediation_command_syntax']
     remediation_command_result = config_json['remediation_command_result']
     debug_cmd_list_before = config_json.get('debug_cmd_list_before', [])
@@ -152,15 +155,29 @@ def main():
         eventlog_num_of_events_to_check = config_json['eventlog_num_of_events_to_check']
         res = get_events(eventlog_type, int(eventlog_id), eventlog_search_string, eventlog_num_of_events_to_check)
     else:
-        check_command_syntax = config_json['check_command_syntax']
-        #check_command_result = config_json['check_command_result']
         #pdb.set_trace()
-        res = run_cmd(check_command_syntax, return_output=True)
+        found_success = False
+        list_of_results = []
+        for one_command in check_command_list:
+            #check_command_syntax = config_json['check_command_syntax']
+            #check_command_result = config_json['check_command_result']
+            #pdb.set_trace()
+            res = run_cmd(one_command, return_output=True)
+            list_of_results.append(res)
+            if not res[0]:
+                found_success = True
+            elif res[0] == 1:
+                logging.warning(f'check failed. Details: {res[1]}')
+            else:
+                logging.error(f'Non-1 error while running cmd, check syntax. Script will exit. Error: {res[1]}')
+        if found_success: # ugh, set these so the next block of code can work unchanged. if we remove the windows event stuf then none of this would be necessary. Though its becoming unlikely the windows event side of this script is still functional.
+            res[0] == 0
+        else:
+            res[0] == 1
 
     if not res[0]:
         logging.info('check command success')
     elif res[0] == 1:
-        logging.warning(f'check failed. Details: {res[1]}')
         logging.info('running debug cmds BEFORE remediation')
         for debug_cmd in debug_cmd_list_before:
             debug_cmd_res = run_cmd(debug_cmd, return_output=True)
@@ -175,8 +192,6 @@ def main():
         for debug_cmd in debug_cmd_list_after:
             debug_cmd_res = run_cmd(debug_cmd, return_output=True)
             logging.info(f'{debug_cmd}: {debug_cmd_res[1]}')
-    else:
-        logging.error(f'Non-1 error while running cmd, check syntax. Script will exit. Error: {res[1]}')
 
     logging.info('Script finish')
 
